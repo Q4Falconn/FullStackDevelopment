@@ -99,6 +99,10 @@ export class Deck {
     return this.cards.length;
   }
 
+  top(): Card | undefined {
+    return this.cards[0];
+  }
+
   deal(): Card | undefined {
     return this.cards.shift();
   }
