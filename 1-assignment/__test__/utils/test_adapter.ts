@@ -41,7 +41,9 @@ export function createRoundFromMemento(
   memento: any,
   shuffler: Shuffler<Card> = standardShuffler
 ): Round {
-  return null as any;
+  const round = new Round(memento.players, 0, shuffler, 7);
+  const newRound = round.createRoundFromMemento(memento);
+  return newRound;
 }
 
 export type GameConfig = {
