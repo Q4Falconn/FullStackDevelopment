@@ -1,5 +1,5 @@
 import { Shuffler } from "../utils/random_utils";
-import { Card, Deck } from "./deck";
+import { Card, Deck, NumberedCard } from "./deck";
 
 const MIN_AMOUNT_OF_PLAYERS = 2;
 const MAX_AMOUNT_OF_PLAYERS = 10;
@@ -9,7 +9,10 @@ export class Round {
   private discardPileDeck: Card[] = [];
   private players: string[] = [];
   private playerHands: Card[][] = [];
-  private privateDealer: number = 1;
+  private privateDealer: number;
+
+  private currentPlayerIndex: number = 0;
+  private direction: 1 | -1 = 1;
 
   constructor(
     players: string[],
@@ -57,6 +60,40 @@ export class Round {
     }
 
     this.discardPileDeck.push(topCard);
+
+    const n = this.players.length;
+    let startIndex = (this.privateDealer + 1) % n;
+    let direction: 1 | -1 = 1;
+
+    switch (topCard.type) {
+      case "SKIP":
+        startIndex = (startIndex + 1) % n;
+        break;
+
+      case "REVERSE":
+        if (n === 2) {
+          startIndex = (startIndex + 1) % n;
+        } else {
+          direction = -1;
+          startIndex = (this.privateDealer - 1 + n) % n;
+        }
+        break;
+
+      case "DRAW":
+        const firstNewCard = this.deck.deal();
+        const secondNewCard = this.deck.deal();
+        if (firstNewCard) {
+          this.playerHands[startIndex].push(firstNewCard);
+        }
+        if (secondNewCard) {
+          this.playerHands[startIndex].push(secondNewCard);
+        }
+        startIndex = (startIndex + 1) % n;
+        break;
+    }
+
+    this.currentPlayerIndex = startIndex;
+    this.direction = direction;
   }
 
   player(index: number): string {
@@ -85,5 +122,34 @@ export class Round {
 
   drawPile(): Deck {
     return this.deck;
+  }
+
+  playerInTurn(): number {
+    return this.currentPlayerIndex;
+  }
+
+  play(cardIndex : number): void {
+    const isLegalMove = this.isLegalMove(cardIndex)
+    if (!isLegalMove) {
+      throw new Error("Illegal move")
+    }
+  
+  }
+
+  private isLegalMove(cardIndex : number): boolean {
+    const currentCard = this.playerHands[this.currentPlayerIndex][cardIndex]
+    if (currentCard.type === "WILD" || currentCard.type === "WILD DRAW") {
+      return true
+    }
+    const discardPileAsDeckType = new Deck(this.discardPileDeck)
+    const topCard = discardPileAsDeckType.top()
+    if (currentCard.color !== (topCard as NumberedCard).color) {
+      return false
+    }
+    if (currentCard.type === "NUMBERED" && topCard!.type === "NUMBERED" && currentCard.number === topCard?.number) {
+      return true
+    }
+
+    return false
   }
 }
