@@ -99,8 +99,8 @@ export class Round {
     return this.currentPlayerIndex;
   }
 
-  play(cardIndex: number, nextColor?: (typeof colors)[number]): void {
-    const canPlay = this.canPlay(cardIndex);
+  play(cardIndex: number, nextColor?: (typeof colors)[number]): Card {
+    const canPlay = this.canPlay(cardIndex, nextColor);
 
     // const currentCard = this.hands[this.currentPlayerIndex][cardIndex];
     const discardPileAsDeckType = new Deck(this.discardPileDeck);
@@ -115,21 +115,51 @@ export class Round {
       1
     )[0];
     this.discardPileDeck.push(playedCard);
+
+    if (
+      !nextColor &&
+      playedCard.type !== "WILD" &&
+      playedCard.type !== "WILD DRAW" &&
+      topCard.type !== "WILD" &&
+      topCard.type !== "WILD DRAW" &&
+      topCard.color !== playedCard.color
+    ) {
+      this.currentColor = playedCard.color;
+    }
+
     topCard = playedCard;
 
     if (nextColor) {
       this.currentColor = nextColor;
-      this.setCurrentPlayerIndex(topCard);
     }
+
+    this.setCurrentPlayerIndex(topCard);
+
+    return playedCard;
   }
 
-  canPlay(currentCardIndex: number): boolean {
+  canPlay(currentCardIndex: number, nextColor?: string): boolean {
     const currentCard = this.hands[this.currentPlayerIndex][currentCardIndex];
     const discardPileAsDeckType = new Deck(this.discardPileDeck);
     const topCard = discardPileAsDeckType.top();
 
     if (!topCard) {
       throw new Error("Discard pile is empty");
+    }
+
+    if (
+      currentCard.type !== "WILD" &&
+      currentCard.type !== "WILD DRAW" &&
+      nextColor
+    ) {
+      throw new Error("Illegal to name a color on a colored card");
+    }
+
+    if (
+      (currentCard.type === "WILD" || currentCard.type === "WILD DRAW") &&
+      !nextColor
+    ) {
+      throw new Error("Can't play Wild or Wild Draw without new Color");
     }
 
     if (
@@ -154,6 +184,54 @@ export class Round {
     }
 
     return false;
+  }
+
+  canPlayAny(): boolean {
+    for (
+      let card = 0;
+      card < this.hands[this.currentPlayerIndex].length;
+      card++
+    ) {
+      const cardModel = this.hands[this.currentPlayerIndex][card];
+      let color: (typeof colors)[number] | undefined = undefined;
+      if (cardModel.type === "WILD" || cardModel.type === "WILD DRAW") {
+        color = "BLUE";
+      }
+      const canPlay = this.canPlay(card, color);
+
+      if (canPlay) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  draw(): number {
+    let card = this.deck.deal();
+    const currentHand = this.hands[this.currentPlayerIndex];
+
+    if (!card) {
+      console.log(this.discardPileDeck)
+      this.deck = new Deck(this.discardPileDeck.slice(0, -1))
+      // this.discardPileDeck = this.discardPileDeck.slice(-1)
+      card = this.deck.deal()!
+    }
+
+    let color: (typeof colors)[number] | undefined = undefined;
+    if (card.type === "WILD" || card.type === "WILD DRAW") {
+      color = "BLUE";
+    }
+
+    currentHand.push(card);
+
+    if (!this.canPlay(currentHand.length - 1, color)) {
+      const n = this.players.length;
+      this.currentPlayerIndex =
+        this.currentDirection === "clockwise"
+          ? (this.currentPlayerIndex + 1) % n
+          : (this.currentPlayerIndex - 1 + n) % n;
+    }
+    return currentHand.length;
   }
 
   createRoundFromMemento(memento: any): Round {
@@ -243,8 +321,12 @@ export class Round {
         if (n === 2) {
           startIndex = (startIndex + 1) % n;
         } else {
-          this.currentDirection === "counterclockwise";
-          startIndex = (this.privateDealer - 1 + n) % n;
+          this.currentDirection =
+            this.currentDirection === "counterclockwise"
+              ? "clockwise"
+              : "counterclockwise";
+          const sign = this.currentDirection === "counterclockwise" ? -1 : 1;
+          startIndex = (startIndex + sign * 1 + n) % n;
         }
         break;
 
@@ -256,6 +338,17 @@ export class Round {
         }
         if (secondNewCard) {
           this.hands[(startIndex + 1) % n].push(secondNewCard);
+        }
+        startIndex = (startIndex + 2) % n;
+        break;
+      case "WILD DRAW":
+        const playerReceiver = (startIndex + 1) % n;
+        for (let card = 0; card < 4; card++) {
+          const newCard = this.deck.deal();
+          if (!newCard) {
+            throw new Error("No cards left");
+          }
+          this.hands[playerReceiver].push(newCard);
         }
         startIndex = (startIndex + 2) % n;
         break;

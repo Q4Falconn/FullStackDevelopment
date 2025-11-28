@@ -100,7 +100,7 @@ export class Deck {
   }
 
   top(): Card | undefined {
-    return this.cards[0];
+    return this.cards[this.cards.length - 1];
   }
 
   deal(): Card | undefined {
