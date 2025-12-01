@@ -100,7 +100,7 @@ export class Deck {
   }
 
   top(): Card | undefined {
-    return this.cards[this.cards.length - 1];
+    return this.cards[0];
   }
 
   deal(): Card | undefined {
@@ -116,6 +116,10 @@ export class Deck {
 
   shuffle(shuffler: (cards: Card[]) => void): void {
     shuffler(this.cards);
+  }
+
+  peek(): Card | undefined {
+    return this.cards[0];
   }
 
   toMemento(): Record<string, string | number>[] {

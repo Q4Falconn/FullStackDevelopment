@@ -460,28 +460,34 @@ describe("Drawing a card", () => {
     });
   });
 
-  // describe("when drawing because of a card", () => {
-  //   const memento = {
-  //     players: ['a', 'b', 'c', 'd'],
-  //     hands: [
-  //       [{type: 'NUMBERED', color: 'GREEN', number: 4}],
-  //       [{type: 'REVERSE', color: 'GREEN'}, {type: 'DRAW', color: 'BLUE'}],
-  //       [{type: 'NUMBERED', color: 'GREEN', number: 8}],
-  //       [{type: 'NUMBERED', color: 'GREEN', number: 0}],
-  //     ],
-  //     drawPile: [{type: 'NUMBERED', color: 'GREEN', number: 0}],
-  //     discardPile: [{type: 'NUMBERED', color: 'BLUE', number: 3}, {type: 'NUMBERED', color: 'BLUE', number: 8}],
-  //     currentColor: 'BLUE',
-  //     currentDirection: 'clockwise',
-  //     dealer: 3,
-  //     playerInTurn: 1
-  //   }
-  //   const round = createRoundFromMemento(memento)
-  //   round.play(1)
-  //   expect(round.playerHand(2).length).toEqual(3)
-  //   expect(round.discardPile().size).toEqual(1)
-  //   expect(round.drawPile().size).toEqual(1)
-  // })
+  describe("when drawing because of a card", () => {
+    const memento = {
+      players: ["a", "b", "c", "d"],
+      hands: [
+        [{ type: "NUMBERED", color: "GREEN", number: 4 }],
+        [
+          { type: "REVERSE", color: "GREEN" },
+          { type: "DRAW", color: "BLUE" },
+        ],
+        [{ type: "NUMBERED", color: "GREEN", number: 8 }],
+        [{ type: "NUMBERED", color: "GREEN", number: 0 }],
+      ],
+      drawPile: [{ type: "NUMBERED", color: "GREEN", number: 0 }],
+      discardPile: [
+        { type: "NUMBERED", color: "BLUE", number: 3 },
+        { type: "NUMBERED", color: "BLUE", number: 8 },
+      ],
+      currentColor: "BLUE",
+      currentDirection: "clockwise",
+      dealer: 3,
+      playerInTurn: 1,
+    };
+    const round = createRoundFromMemento(memento);
+    round.play(1);
+    expect(round.playerHand(2).length).toEqual(3);
+    expect(round.discardPile().size).toEqual(1);
+    expect(round.drawPile().size).toEqual(1);
+  });
 });
 
 describe("special 2-player rules", () => {

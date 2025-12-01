@@ -1,5 +1,5 @@
 import { Card, Deck } from "../../src/model/deck";
-import { Round } from "../../src/model/round";
+import { fromMemento, Round } from "../../src/model/round";
 import {
   Randomizer,
   Shuffler,
@@ -41,8 +41,7 @@ export function createRoundFromMemento(
   memento: any,
   shuffler: Shuffler<Card> = standardShuffler
 ): Round {
-  const round = new Round(memento.players, 0, shuffler, 7);
-  const newRound = round.createRoundFromMemento(memento);
+  const newRound = fromMemento(memento, shuffler);
   return newRound;
 }
 
