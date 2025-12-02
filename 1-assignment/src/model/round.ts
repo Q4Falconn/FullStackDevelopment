@@ -13,6 +13,7 @@ export class Round {
   private shuffler: Shuffler<Card> = standardShuffler;
   private currentColor: (typeof colors)[number] = "RED";
   private unoCalledBy: number[] = [];
+  private onEndCallbacks: Array<(e: { winner: number }) => void> = [];
 
   private currentPlayerIndex: number = 0;
   private currentDirection: "clockwise" | "counterclockwise" = "clockwise";
@@ -98,7 +99,11 @@ export class Round {
     return this.deck;
   }
 
-  playerInTurn(): number {
+  playerInTurn(): number | undefined {
+    if (this.isGameOver()) {
+      return undefined;
+    }
+
     return this.currentPlayerIndex;
   }
 
@@ -146,10 +151,21 @@ export class Round {
 
     this.setCurrentPlayerIndex(topCard);
 
+    const isWinner = this.hands.some((hand) => hand.length === 0);
+    if (isWinner) {
+      this.onEndCallbacks.forEach((callback) =>
+        callback({ winner: this.winner()! })
+      );
+    }
+
     return playedCard;
   }
 
   canPlay(currentCardIndex: number): boolean {
+    if (this.isGameOver()) {
+      return false;
+    }
+
     if (
       currentCardIndex < 0 ||
       currentCardIndex >= this.hands[this.currentPlayerIndex].length
@@ -218,6 +234,10 @@ export class Round {
   }
 
   draw(): number {
+    if (this.isGameOver()) {
+      throw new Error("Round is over");
+    }
+
     this.unoCalledBy = [];
     let card = this.deck.deal()!;
     const currentHand = this.hands[this.currentPlayerIndex];
@@ -377,6 +397,71 @@ export class Round {
     return true;
   }
 
+  sayUno(playerIndex: number): void {
+    if (this.isGameOver()) {
+      throw new Error("Round is over");
+    }
+
+    if (playerIndex < 0 || playerIndex >= this.players.length) {
+      throw new Error("Player index out of bounds");
+    }
+    ``;
+    this.unoCalledBy.push(playerIndex);
+  }
+
+  hasEnded(): boolean {
+    return this.isGameOver();
+  }
+
+  winner(): number | undefined {
+    for (let i = 0; i < this.hands.length; i++) {
+      if (this.hands[i].length === 0) {
+        return i;
+      }
+    }
+
+    return undefined;
+  }
+
+  score(): number | undefined {
+    if (!this.isGameOver()) {
+      return undefined;
+    }
+
+    let totalScore = 0;
+
+    for (let i = 0; i < this.hands.length; i++) {
+      if (this.hands[i].length === 0) {
+        continue;
+      }
+
+      for (const card of this.hands[i]) {
+        switch (card.type) {
+          case "NUMBERED":
+            totalScore += (card as NumberedCard).number;
+            break;
+          case "SKIP":
+          case "REVERSE":
+          case "DRAW":
+            totalScore += 20;
+            break;
+          case "WILD":
+          case "WILD DRAW":
+            totalScore += 50;
+            break;
+        }
+      }
+    }
+
+    return totalScore;
+  }
+
+  onEnd(callback: ({ winner }: { winner: number }) => void): void {
+    this.onEndCallbacks.push(({ winner }: { winner: number }) => {
+      callback({ winner });
+    });
+  }
+
   private setCurrentPlayerIndex(topCard: Card): void {
     const n = this.players.length;
     let startIndex = this.currentPlayerIndex;
@@ -439,14 +524,6 @@ export class Round {
     }
 
     this.currentPlayerIndex = startIndex;
-  }
-
-  sayUno(playerIndex: number): void {
-    if (playerIndex < 0 || playerIndex >= this.players.length) {
-      throw new Error("Player index out of bounds");
-    }
-
-    this.unoCalledBy.push(playerIndex);
   }
 
   private isGameOver(): boolean {
