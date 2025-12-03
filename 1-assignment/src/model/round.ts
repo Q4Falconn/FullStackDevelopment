@@ -261,6 +261,8 @@ export class Round {
   static createRoundFromMemento(memento: any, shuffler: Shuffler<Card>): Round {
     const round = Object.create(Round.prototype) as Round;
 
+    round.onEndCallbacks = [];
+
     round.shuffler = shuffler;
 
     // clone arrays so we don't mutate memento across tests
@@ -405,7 +407,7 @@ export class Round {
     if (playerIndex < 0 || playerIndex >= this.players.length) {
       throw new Error("Player index out of bounds");
     }
-    ``;
+
     this.unoCalledBy.push(playerIndex);
   }
 
