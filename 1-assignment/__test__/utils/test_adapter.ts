@@ -52,7 +52,7 @@ export type GameConfig = {
 };
 
 export function createGame(props: Partial<GameConfig>): Game {
-  return new Game();
+  return new Game(props as GameConfig);
 }
 
 export function createGameFromMemento(

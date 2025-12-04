@@ -1,3 +1,11 @@
+import { GameConfig } from "../../__test__/utils/test_adapter";
+import {
+  Randomizer,
+  Shuffler,
+  standardRandomizer,
+  standardShuffler,
+} from "../utils/random_utils";
+import { Card } from "./deck";
 import { fromMemento, Round } from "./round";
 
 export class GameMemento {
@@ -14,6 +22,42 @@ export class Game {
   private targetScorePrivate: number = 0;
   private scores: number[] = [];
   private cardsPerPlayer: number = 0;
+  private randomizer: Randomizer = standardRandomizer;
+  private shuffler: Shuffler<Card> = standardShuffler;
+
+  constructor(gameConfig?: GameConfig) {
+    if (!gameConfig) {
+      return;
+    }
+
+    if (!gameConfig.players) {
+      gameConfig.players = ["A", "B"];
+    } else if (gameConfig.players.length < 2) {
+      throw new Error("A game must have at least two players.");
+    }
+
+    if (!gameConfig.targetScore && gameConfig.targetScore !== 0) {
+      gameConfig.targetScore = 500;
+    } else if (gameConfig.targetScore <= 0) {
+      throw new Error("Target score must be positive.");
+    }
+
+    this.players = [...gameConfig.players];
+    this.targetScorePrivate = gameConfig.targetScore;
+    this.scores = new Array(this.players.length).fill(0);
+    this.cardsPerPlayer = gameConfig.cardsPerPlayer;
+    this.randomizer = gameConfig.randomizer || standardRandomizer;
+    this.shuffler = gameConfig.shuffler || standardShuffler;
+
+    const dealerIndex = this.randomizer(this.players.length);
+    this.currentRoundModel = new Round(
+      this.players,
+      dealerIndex,
+      this.shuffler,
+      this.cardsPerPlayer
+    );
+    this.currentRoundModel.onEnd(this.onRoundFinished);
+  }
 
   static createFromMemento(memento: any): Game {
     if (memento.players.length < 2) {
@@ -37,7 +81,7 @@ export class Game {
     }
 
     const game = new Game();
-    game.players = memento.players;
+    game.players = [...memento.players];
     game.scores = [...memento.scores];
     game.targetScorePrivate = memento.targetScore;
     game.cardsPerPlayer = memento.cardsPerPlayer;
@@ -62,6 +106,10 @@ export class Game {
   }
 
   player(index: number): string {
+    if (index < 0 || index >= this.players.length) {
+      throw new Error("Player index out of bounds.");
+    }
+
     return this.players[index];
   }
 
@@ -106,7 +154,13 @@ export class Game {
     if (this.scores[winner] >= this.targetScore) {
       this.currentRoundModel = undefined;
     } else {
-      // this.currentRoundModel = new Round(this.players, this.);
+      const dealerIndex = this.randomizer!(this.players.length);
+      this.currentRoundModel = new Round(
+        this.players,
+        dealerIndex,
+        this.shuffler,
+        this.cardsPerPlayer
+      );
     }
   };
 }
