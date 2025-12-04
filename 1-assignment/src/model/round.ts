@@ -536,6 +536,7 @@ export class Round {
     const [top, ...rest] = this.discardPileDeck;
     this.discardPileDeck = [top];
     this.deck = new Deck(rest);
+    this.deck.shuffle(this.shuffler);
   }
 
   private colorCardValidator(cardIndex: number, nextColor?: string): void {
