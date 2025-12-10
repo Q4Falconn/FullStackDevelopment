@@ -12,14 +12,39 @@
 
     <main class="main">
       <RouterView />
-      <button @click="play">Play first player</button>
-      <h1>Amount of players {{ game.playerCount }}</h1>
+
+      <h1>{{ game.playerCount }}</h1>
+      <Pile
+        :deckType="{ type: 'DISCARD' }"
+        :card="(game.currentRound()!.discardPile().top())"
+      />
+
+      <Pile
+        :deckType="{ type: 'DRAW' }"
+        :card="(game.currentRound()!.drawPile().top() as CardType)"
+      />
+
+      <h2>Player in turn {{ game.currentRound()!.playerInTurn() }}</h2>
+
+      <p v-if="game.currentRound()!.playerInTurn() == currentPlayer">
+        Your turn!
+      </p>
+      <div
+        v-for="(card, index) in currentPlayerHand"
+        :key="index"
+        style="display: inline-block; margin-right: 10px"
+      >
+        <Card :card="(card as CardType)"></Card>
+      </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import Card from "@/components/Card.vue";
+import { computed, reactive, ref } from "vue";
+import type { Card as CardType } from "./model/deck";
+import Pile from "./components/Pile.vue";
 import { Game } from "./model/game";
 
 const currentRoundMemento = {
@@ -48,14 +73,17 @@ const unoMemento = {
   cardsPerPlayer: 7,
 };
 
-const game = ref(Game.createFromMemento(unoMemento));
+const game = reactive(Game.createFromMemento(unoMemento));
 
-console.log("Game memento:", game.value.toMemento());
+const currentPlayer = ref(0);
+const currentPlayerHand = computed(() => {
+  const currentRound = game.currentRound();
+  if (!currentRound) {
+    return [];
+  }
 
-function play() {
-  const playedCard = game.value.currentRound().play(0);
-  console.log("Played Card:", playedCard);
-}
+  return currentRound.playerHand(currentPlayer.value);
+});
 </script>
 
 <style scoped>

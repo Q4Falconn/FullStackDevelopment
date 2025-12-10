@@ -48,7 +48,7 @@ export class Round {
           throw new Error("Not enough cards in the deck to deal");
         }
 
-        this.hands[index].push(card);
+        this.hands[index]!.push(card);
       }
     });
 
@@ -76,7 +76,7 @@ export class Round {
       throw new Error("Player index out of bounds");
     }
 
-    return this.players[index];
+    return this.players[index]!;
   }
 
   get playerCount(): number {
@@ -88,7 +88,7 @@ export class Round {
   }
 
   playerHand(playerIndex: number): Readonly<Card>[] {
-    return this.hands[playerIndex];
+    return this.hands[playerIndex]!;
   }
 
   discardPile(): Deck {
@@ -126,24 +126,24 @@ export class Round {
       throw new Error("Illegal move");
     }
 
-    const playedCard = this.hands[this.currentPlayerIndex].splice(
+    const playedCard = this.hands[this.currentPlayerIndex]!.splice(
       cardIndex,
       1
     )[0];
-    this.discardPileDeck.unshift(playedCard);
+    this.discardPileDeck.unshift(playedCard!);
 
     if (
       !nextColor &&
-      playedCard.type !== "WILD" &&
-      playedCard.type !== "WILD DRAW" &&
+      playedCard!.type !== "WILD" &&
+      playedCard!.type !== "WILD DRAW" &&
       topCard.type !== "WILD" &&
       topCard.type !== "WILD DRAW" &&
-      topCard.color !== playedCard.color
+      topCard.color !== playedCard!.color
     ) {
-      this.currentColor = playedCard.color;
+      this.currentColor = playedCard!.color;
     }
 
-    topCard = playedCard;
+    topCard = playedCard!;
 
     if (nextColor) {
       this.currentColor = nextColor;
@@ -158,7 +158,7 @@ export class Round {
       );
     }
 
-    return playedCard;
+    return playedCard!;
   }
 
   canPlay(currentCardIndex: number): boolean {
@@ -168,12 +168,12 @@ export class Round {
 
     if (
       currentCardIndex < 0 ||
-      currentCardIndex >= this.hands[this.currentPlayerIndex].length
+      currentCardIndex >= this.hands[this.currentPlayerIndex]!.length
     ) {
       return false;
     }
 
-    const currentCard = this.hands[this.currentPlayerIndex][currentCardIndex];
+    const currentCard = this.hands[this.currentPlayerIndex]![currentCardIndex];
     const discardPileAsDeckType = new Deck(this.discardPileDeck);
     const topCard = discardPileAsDeckType.top();
 
@@ -183,33 +183,36 @@ export class Round {
 
     const hasColorCardWithCurrentColor = this.hands[
       this.currentPlayerIndex
-    ].some(
+    ]!.some(
       (card) =>
         card.type !== "WILD" &&
         card.type !== "WILD DRAW" &&
         card.color === this.currentColor
     );
 
-    if (currentCard.type === "WILD DRAW" && hasColorCardWithCurrentColor) {
+    if (currentCard!.type === "WILD DRAW" && hasColorCardWithCurrentColor) {
       return false;
     }
 
-    if (currentCard.type === "WILD" || currentCard.type === "WILD DRAW") {
+    if (currentCard!.type === "WILD" || currentCard!.type === "WILD DRAW") {
       return true;
     }
 
-    if (currentCard.color === this.currentColor) {
-      return true;
-    }
-
-    if (currentCard.type === topCard.type && currentCard.type !== "NUMBERED") {
+    if (currentCard!.color === this.currentColor) {
       return true;
     }
 
     if (
-      currentCard.type === "NUMBERED" &&
+      currentCard!.type === topCard.type &&
+      currentCard!.type !== "NUMBERED"
+    ) {
+      return true;
+    }
+
+    if (
+      currentCard!.type === "NUMBERED" &&
       topCard!.type === "NUMBERED" &&
-      currentCard.number === topCard.number
+      currentCard!.number === topCard!.number
     ) {
       return true;
     }
@@ -220,7 +223,7 @@ export class Round {
   canPlayAny(): boolean {
     for (
       let card = 0;
-      card < this.hands[this.currentPlayerIndex].length;
+      card < this.hands[this.currentPlayerIndex]!.length;
       card++
     ) {
       const canPlay = this.canPlay(card);
@@ -241,9 +244,9 @@ export class Round {
     this.unoCalledBy = [];
     let card = this.deck.deal()!;
     const currentHand = this.hands[this.currentPlayerIndex];
-    currentHand.push(card);
+    currentHand!.push(card);
 
-    if (!this.canPlay(currentHand.length - 1)) {
+    if (!this.canPlay(currentHand!.length - 1)) {
       const n = this.players.length;
       this.currentPlayerIndex =
         this.currentDirection === "clockwise"
@@ -255,7 +258,7 @@ export class Round {
       this.refreshDeckFromDiscardPile();
     }
 
-    return currentHand.length;
+    return currentHand!.length;
   }
 
   static createRoundFromMemento(memento: any, shuffler: Shuffler<Card>): Round {
@@ -350,7 +353,7 @@ export class Round {
       return false;
     }
 
-    if (this.hands[accused].length !== 1) {
+    if (this.hands[accused]!.length !== 1) {
       return false;
     }
 
@@ -394,7 +397,7 @@ export class Round {
       newCards.push(card);
     }
 
-    this.hands[accused].push(...newCards);
+    this.hands[accused]!.push(...newCards);
 
     return true;
   }
@@ -417,7 +420,7 @@ export class Round {
 
   winner(): number | undefined {
     for (let i = 0; i < this.hands.length; i++) {
-      if (this.hands[i].length === 0) {
+      if (this.hands[i]!.length === 0) {
         return i;
       }
     }
@@ -433,11 +436,11 @@ export class Round {
     let totalScore = 0;
 
     for (let i = 0; i < this.hands.length; i++) {
-      if (this.hands[i].length === 0) {
+      if (this.hands[i]!.length === 0) {
         continue;
       }
 
-      for (const card of this.hands[i]) {
+      for (const card of this.hands[i]!) {
         switch (card.type) {
           case "NUMBERED":
             totalScore += (card as NumberedCard).number;
@@ -489,18 +492,18 @@ export class Round {
       case "DRAW":
         const firstNewCard = this.deck.deal();
         if (firstNewCard) {
-          this.hands[(startIndex + 1) % n].push(firstNewCard);
+          this.hands[(startIndex + 1) % n]!.push(firstNewCard);
         } else {
           this.refreshDeckFromDiscardPile();
-          this.hands[(startIndex + 1) % n].push(this.deck.deal()!);
+          this.hands[(startIndex + 1) % n]!.push(this.deck.deal()!);
         }
 
         const secondNewCard = this.deck.deal();
         if (secondNewCard) {
-          this.hands[(startIndex + 1) % n].push(secondNewCard);
+          this.hands[(startIndex + 1) % n]!.push(secondNewCard);
         } else {
           this.refreshDeckFromDiscardPile();
-          this.hands[(startIndex + 1) % n].push(this.deck.deal()!);
+          this.hands[(startIndex + 1) % n]!.push(this.deck.deal()!);
         }
 
         startIndex = (startIndex + 2) % n;
@@ -512,7 +515,7 @@ export class Round {
           if (!newCard) {
             throw new Error("No cards left");
           }
-          this.hands[playerReceiver].push(newCard);
+          this.hands[playerReceiver]!.push(newCard);
         }
         startIndex = (startIndex + 2) % n;
         break;
@@ -534,18 +537,18 @@ export class Round {
 
   private refreshDeckFromDiscardPile(): void {
     const [top, ...rest] = this.discardPileDeck;
-    this.discardPileDeck = [top];
+    this.discardPileDeck = [top!];
     this.deck = new Deck(rest);
     this.deck.shuffle(this.shuffler);
   }
 
   private colorCardValidator(cardIndex: number, nextColor?: string): void {
-    const card = this.hands[this.currentPlayerIndex][cardIndex];
-    if (card.type !== "WILD" && card.type !== "WILD DRAW" && nextColor) {
+    const card = this.hands[this.currentPlayerIndex]![cardIndex];
+    if (card!.type !== "WILD" && card!.type !== "WILD DRAW" && nextColor) {
       throw new Error("Illegal to name a color on a colored card");
     }
 
-    if ((card.type === "WILD" || card.type === "WILD DRAW") && !nextColor) {
+    if ((card!.type === "WILD" || card!.type === "WILD DRAW") && !nextColor) {
       throw new Error("Can't play Wild or Wild Draw without new Color");
     }
   }
