@@ -1,90 +1,45 @@
+<script setup lang="ts">
+import { useAuthStore } from "@/stores/authStore";
+import { useRouter } from "vue-router";
+
+const auth = useAuthStore();
+const router = useRouter();
+
+const logout = () => {
+  auth.logout();
+  router.push("/login");
+};
+</script>
+
 <template>
   <div id="app">
     <header class="header">
       <h2>UNO Assignment</h2>
+
       <nav class="top-nav">
         <RouterLink to="/">Setup</RouterLink>
         <RouterLink to="/play">Play</RouterLink>
         <RouterLink to="/game-over">Game Over</RouterLink>
         <RouterLink to="/summary">Summary</RouterLink>
       </nav>
+
+      <div class="auth-area">
+        <template v-if="auth.isAuthenticated">
+          <span class="user">Hi, {{ auth.user?.username }}</span>
+          <button type="button" @click="logout">Logout</button>
+        </template>
+        <template v-else>
+          <RouterLink to="/login">Login</RouterLink>
+          <RouterLink to="/register">Register</RouterLink>
+        </template>
+      </div>
     </header>
 
     <main class="main">
       <RouterView />
-
-      <h1>{{ game.playerCount }}</h1>
-      <Pile
-        :deckType="{ type: 'DISCARD' }"
-        :card="(game.currentRound()!.discardPile().top())"
-      />
-
-      <Pile
-        :deckType="{ type: 'DRAW' }"
-        :card="(game.currentRound()!.drawPile().top() as CardType)"
-      />
-
-      <h2>Player in turn {{ game.currentRound()!.playerInTurn() }}</h2>
-
-      <p v-if="game.currentRound()!.playerInTurn() == currentPlayer">
-        Your turn!
-      </p>
-      <div
-        v-for="(card, index) in currentPlayerHand"
-        :key="index"
-        style="display: inline-block; margin-right: 10px"
-      >
-        <Card :card="(card as CardType)"></Card>
-      </div>
     </main>
   </div>
 </template>
-
-<script setup lang="ts">
-import Card from "@/components/Card.vue";
-import { computed, reactive, ref } from "vue";
-import type { Card as CardType } from "./model/deck";
-import Pile from "./components/Pile.vue";
-import { Game } from "./model/game";
-
-const currentRoundMemento = {
-  players: ["A", "B", "C"],
-  hands: [
-    [{ type: "WILD" }, { type: "DRAW", color: "GREEN" }],
-    [{ type: "NUMBERED", color: "RED", number: 7 }],
-    [{ type: "SKIP", color: "RED" }],
-  ],
-  drawPile: [{ type: "WILD DRAW" }],
-  discardPile: [
-    { type: "NUMBERED", color: "BLUE", number: 7 },
-    { type: "SKIP", color: "BLUE" },
-  ],
-  currentColor: "BLUE",
-  currentDirection: "clockwise",
-  dealer: 2,
-  playerInTurn: 1,
-};
-
-const unoMemento = {
-  players: ["A", "B", "C"],
-  currentRound: currentRoundMemento,
-  targetScore: 500,
-  scores: [220, 430, 80],
-  cardsPerPlayer: 7,
-};
-
-const game = reactive(Game.createFromMemento(unoMemento));
-
-const currentPlayer = ref(0);
-const currentPlayerHand = computed(() => {
-  const currentRound = game.currentRound();
-  if (!currentRound) {
-    return [];
-  }
-
-  return currentRound.playerHand(currentPlayer.value);
-});
-</script>
 
 <style scoped>
 #app {
@@ -112,5 +67,20 @@ const currentPlayerHand = computed(() => {
 
 .main {
   padding: 2rem;
+}
+
+.auth-area {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-area button {
+  padding: 0.25rem 0.5rem;
+}
+
+.user {
+  font-size: 0.9rem;
+  opacity: 0.8;
 }
 </style>

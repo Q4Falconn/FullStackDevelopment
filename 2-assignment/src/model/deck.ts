@@ -8,8 +8,7 @@ export const actionTypes = [
   "WILD DRAW",
 ] as const;
 
-type Color = (typeof colors)[number];
-type ActionType = (typeof actionTypes)[number];
+export type Color = (typeof colors)[number];
 
 export interface NumberedCard {
   type: "NUMBERED";

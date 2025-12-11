@@ -7,7 +7,7 @@ import {
 import { type Card } from "./deck";
 import { fromMemento, Round } from "./round";
 
-type GameConfig = {
+export type GameConfig = {
   players?: string[];
   targetScore?: number;
   cardsPerPlayer: number;
@@ -66,7 +66,7 @@ export class Game {
     this.currentRoundModel.onEnd(this.onRoundFinished);
   }
 
-  static createFromMemento(memento: any): Game {
+  static createFromMemento(memento: GameMemento): Game {
     if (memento.players.length < 2) {
       throw new Error("A game must have at least two players.");
     }
@@ -172,5 +172,5 @@ export class Game {
   };
 }
 
-export const createFromMemento = (memento: any): Game =>
+export const createFromMemento = (memento: GameMemento): Game =>
   Game.createFromMemento(memento);
