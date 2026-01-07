@@ -1,7 +1,7 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
 import { User } from "./models/user.js";
-import { Game } from "./models/game.js";
+import { Game, GameDocument } from "./models/game.js";
 import { connectToDB } from "./db.js";
 import mongoose from "mongoose";
 import { GraphQLError } from "graphql";
@@ -61,15 +61,39 @@ const resolvers = {
 
     games: async () => {
       const games = await Game.find().lean();
-      const creaters = [];
-      for (const game of games) {
-        creaters.push(await User.findById(game.createdBy._id));
-      }
       return games.map((g, i) => ({
         ...g,
         id: g._id.toString(),
-        createdBy: creaters[i],
       }));
+    },
+  },
+
+  Game: {
+    players: async (parent: GameDocument) => {
+      if (parent.players.length === 0) {
+        return [];
+      }
+
+      const users = await User.find({ _id: { $in: parent.players } });
+
+      return parent.players.map((p) => {
+        const matchingPlayer = users.filter(
+          (u) => u._id.toString() === p._id.toString()
+        )[0];
+        return {
+          id: matchingPlayer._id.toString(),
+          username: matchingPlayer.username,
+        };
+      });
+    },
+
+    createdBy: async (parent: GameDocument) => {
+      const user = await User.findById(parent.createdBy._id.toString());
+
+      return {
+        id: user._id.toString(),
+        username: user.username,
+      };
     },
   },
 
@@ -167,7 +191,10 @@ const resolvers = {
         throw new GraphQLError("Player is already connected");
       }
 
-      await Game.updateOne({_id: game._id}, { $addToSet: { players: user.id } });
+      await Game.updateOne(
+        { _id: game._id },
+        { $addToSet: { players: user.id } }
+      );
 
       return game.players.length + 1;
     },
