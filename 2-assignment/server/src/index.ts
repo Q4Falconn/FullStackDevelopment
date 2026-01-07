@@ -60,7 +60,11 @@ const resolvers = {
 
     games: async () => {
       const games = await Game.find().lean();
-      return games.map((g) => ({ ...g, id: g._id.toString() }));
+      const creaters = [];
+      for(const game of games) {
+        creaters.push(await User.findById(game.createdBy._id));
+      }
+      return games.map((g, i) => ({ ...g, id: g._id.toString(), createdBy: creaters[i] }));
     },
   },
 
