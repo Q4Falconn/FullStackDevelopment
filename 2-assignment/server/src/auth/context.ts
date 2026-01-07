@@ -1,5 +1,5 @@
 import { validateToken } from "./jwt.js";
-import { User } from "../models/user.js";
+import { User } from "../db-models/user.js";
 
 function getBearerToken(authorization: string | undefined): string | null {
   if (!authorization) return null;

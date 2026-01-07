@@ -1,7 +1,7 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
-import { User } from "./models/user.js";
-import { Game, GameDocument } from "./models/game.js";
+import { User } from "./db-models/user.js";
+import { Game, GameDocument } from "./db-models/game.js";
 import { connectToDB } from "./db.js";
 import mongoose from "mongoose";
 import { GraphQLError } from "graphql";
@@ -43,6 +43,7 @@ const typeDefs = `#graphql
     login(username: String!, password: String!): AuthPayload
     createGame(amountOfPlayers: Int!, targetScore: Int!, cardsPerPlayer: Int!): Game
     joinGame(gameId: String!): Int
+    playCard(gameId: String!, cardIndex: Int): Boolean
   }
 `;
 
