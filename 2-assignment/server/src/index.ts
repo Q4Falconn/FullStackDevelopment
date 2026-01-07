@@ -42,6 +42,7 @@ const typeDefs = `#graphql
     createUser(username: String!, password: String!): User
     login(username: String!, password: String!): AuthPayload
     createGame(amountOfPlayers: Int!, targetScore: Int!, cardsPerPlayer: Int!): Game
+    joinGame(gameId: String!): Int
   }
 `;
 
@@ -61,10 +62,14 @@ const resolvers = {
     games: async () => {
       const games = await Game.find().lean();
       const creaters = [];
-      for(const game of games) {
+      for (const game of games) {
         creaters.push(await User.findById(game.createdBy._id));
       }
-      return games.map((g, i) => ({ ...g, id: g._id.toString(), createdBy: creaters[i] }));
+      return games.map((g, i) => ({
+        ...g,
+        id: g._id.toString(),
+        createdBy: creaters[i],
+      }));
     },
   },
 
@@ -135,6 +140,36 @@ const resolvers = {
         cardsPerPlayer: game.cardsPerPlayer,
         createdAt: game.createdAt.toISOString(),
       };
+    },
+
+    joinGame: async (
+      _p: unknown,
+      args: {
+        gameId: string;
+      },
+      ctx: { currentUser: { id: string; username: string } | null }
+    ) => {
+      // Game Exists, If Max amount of players is reached, If User is already in
+      const user = requireAuth(ctx);
+      const game = await Game.findById(args.gameId);
+
+      if (!game) {
+        throw new GraphQLError("Game not found");
+      }
+
+      if (game.amountOfPlayers <= game.players.length) {
+        throw new GraphQLError("Max amount of players is reached");
+      }
+
+      if (
+        game.players.map((player) => player._id.toString()).includes(user.id)
+      ) {
+        throw new GraphQLError("Player is already connected");
+      }
+
+      Game.updateOne({_id: game._id}, { $addToSet: { players: user.id } });
+
+      return game.players.length + 1;
     },
   },
 };
