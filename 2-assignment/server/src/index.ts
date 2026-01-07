@@ -167,7 +167,7 @@ const resolvers = {
         throw new GraphQLError("Player is already connected");
       }
 
-      Game.updateOne({_id: game._id}, { $addToSet: { players: user.id } });
+      await Game.updateOne({_id: game._id}, { $addToSet: { players: user.id } });
 
       return game.players.length + 1;
     },
