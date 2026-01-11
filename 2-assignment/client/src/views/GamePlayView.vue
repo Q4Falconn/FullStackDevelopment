@@ -26,7 +26,9 @@
         {{ gameStore.currentLobbyGame!.maxPlayers }} players joined
       </p>
 
-      <button v-if="isHost" @click="gameStore.startGame()">Start game</button>
+      <button v-if="isHost" @click="() => gameStore.startGame()">
+        Start game
+      </button>
       <p v-else>Waiting for the host to start…</p>
     </div>
 
@@ -153,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useGameStore } from "@/stores/gameStore";
 import Card from "@/components/Card.vue";
@@ -174,6 +176,17 @@ const myHand = computed(() => gameStore.currentPlayerHand);
 const errorMessage = ref("");
 const pendingWildIndex = ref<number | null>(null);
 
+onMounted(async () => {
+  if (gameStore.currentGameId) {
+    await gameStore.loadGame(gameStore.currentGameId);
+    gameStore.subscribeToGame(gameStore.currentGameId);
+  }
+});
+
+onBeforeUnmount(() => {
+  gameStore.unsubscribe();
+});
+
 // players view model
 const playerViews = computed(() =>
   gameStore.players.map((name, index) => {
@@ -187,7 +200,7 @@ const playerViews = computed(() =>
     return {
       name,
       initials: initials || name[0]?.toUpperCase() || "?",
-      isMe: index === gameStore.currentPlayerIndex,
+      isMe: name === gameStore.currentPlayerName,
       isTurn: index === gameStore.playerInTurn,
     };
   })
@@ -210,7 +223,7 @@ watch(
   }
 );
 
-const onCardClick = (index: number) => {
+const onCardClick = async (index: number) => {
   errorMessage.value = "";
 
   const card = myHand.value[index];
@@ -227,7 +240,7 @@ const onCardClick = (index: number) => {
   }
 
   try {
-    gameStore.playCardAt(index);
+    await gameStore.playCardAt(index);
   } catch (e: any) {
     errorMessage.value = e?.message ?? "Cannot play this card";
   }
@@ -245,10 +258,10 @@ const chooseWildColor = (color: Color) => {
   }
 };
 
-const onDraw = () => {
+const onDraw = async () => {
   errorMessage.value = "";
   try {
-    gameStore.drawCard();
+    await gameStore.drawCard();
   } catch (e: any) {
     errorMessage.value = e?.message ?? "Cannot draw a card";
   }

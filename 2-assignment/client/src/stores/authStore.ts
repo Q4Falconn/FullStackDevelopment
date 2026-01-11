@@ -1,70 +1,103 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import { apolloClient } from "@/apollo/client";
+import { LOGIN_MUTATION, REGISTER_MUTATION, ME_QUERY } from "@/graphql/auth";
+
+type LoginResult = {
+  login: {
+    token: string;
+    user: {
+      id: string;
+      username: string;
+    };
+  };
+};
+
+type LoginVars = {
+  username: string;
+  password: string;
+};
+
+type MeResult = {
+  me: { id: string; username: string } | null;
+};
 
 interface User {
+  id: string;
   username: string;
 }
 
 const USER_KEY = "uno_user";
-const USERS_KEY = "uno_users"; // simple local “db”
+const TOKEN_KEY = "auth_token";
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
-
   const isAuthenticated = computed(() => !!user.value);
 
   function loadFromStorage() {
-    if (typeof localStorage === "undefined") return;
     const raw = localStorage.getItem(USER_KEY);
-    if (raw) {
-      user.value = JSON.parse(raw);
-    }
+    if (raw) user.value = JSON.parse(raw);
   }
 
   function saveUser(u: User | null) {
-    if (typeof localStorage === "undefined") return;
     user.value = u;
     if (u) localStorage.setItem(USER_KEY, JSON.stringify(u));
     else localStorage.removeItem(USER_KEY);
   }
 
-  function register(username: string, password: string) {
+  async function register(username: string, password: string) {
     const name = username.trim();
-    if (!name || !password) {
-      throw new Error("Username and password required");
-    }
+    if (!name || !password) throw new Error("Username and password required");
 
-    const raw = localStorage.getItem(USERS_KEY);
-    const users: Record<string, string> = raw ? JSON.parse(raw) : {};
+    await apolloClient.mutate({
+      mutation: REGISTER_MUTATION,
+      variables: { username: name, password },
+      fetchPolicy: "no-cache",
+    });
 
-    if (users[name]) {
-      throw new Error("User already exists");
-    }
-
-    users[name] = password;
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-
-    saveUser({ username: name });
+    // Option: auto-login after register
+    await login(name, password);
   }
 
-  function login(username: string, password: string) {
+  async function login(username: string, password: string) {
     const name = username.trim();
-    if (!name || !password) {
-      throw new Error("Username and password required");
-    }
+    if (!name || !password) throw new Error("Username and password required");
 
-    const raw = localStorage.getItem(USERS_KEY);
-    const users: Record<string, string> = raw ? JSON.parse(raw) : {};
+    const res = await apolloClient.mutate<LoginResult, LoginVars>({
+      mutation: LOGIN_MUTATION,
+      variables: { username: name, password },
+      fetchPolicy: "no-cache",
+    });
 
-    if (!users[name] || users[name] !== password) {
+    const payload = res.data?.login;
+    if (!payload?.token || !payload?.user) {
       throw new Error("Invalid username or password");
     }
 
-    saveUser({ username: name });
+    localStorage.setItem(TOKEN_KEY, payload.token);
+    saveUser(payload.user);
+  }
+
+  async function refreshMe() {
+    // useful on app load if token exists
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      saveUser(null);
+      return;
+    }
+
+    const res = await apolloClient.query<MeResult>({
+      query: ME_QUERY,
+      fetchPolicy: "no-cache",
+    });
+
+    saveUser(res.data?.me ?? null);
   }
 
   function logout() {
+    localStorage.removeItem(TOKEN_KEY);
     saveUser(null);
+    apolloClient.clearStore();
   }
 
   loadFromStorage();
@@ -74,6 +107,7 @@ export const useAuthStore = defineStore("auth", () => {
     isAuthenticated,
     register,
     login,
+    refreshMe,
     logout,
   };
 });

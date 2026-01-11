@@ -1,10 +1,38 @@
-// src/stores/gameStore.ts
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { Game, type GameConfig } from "@/model/game";
+import { apolloClient } from "@/apollo/client";
+import { Game, type GameMemento } from "@/model/game";
 import type { Card, Color } from "@/model/deck";
 
-type LobbyGameStatus = "waiting" | "in-progress" | "finished";
+import {
+  GAMES_QUERY,
+  CREATE_GAME_MUTATION,
+  JOIN_GAME_MUTATION,
+  START_GAME_MUTATION,
+} from "@/graphql/games";
+
+import {
+  GAME_QUERY,
+  GAME_UPDATED_SUB,
+  DRAW_CARD,
+  PLAY_CARD,
+} from "@/graphql/gameState";
+
+type LobbyGameStatus = "WAITING" | "IN_PROGRESS" | "FINISHED";
+
+type ApiUser = { id: string; username: string };
+
+type ApiGame = {
+  id: string;
+  status: LobbyGameStatus;
+  amountOfPlayers: number;
+  players: ApiUser[];
+  targetScore: number;
+  cardsPerPlayer: number;
+  createdBy: ApiUser;
+  createdAt: string;
+  state?: unknown | null; // JSON scalar
+};
 
 interface LobbyGame {
   id: string;
@@ -16,41 +44,91 @@ interface LobbyGame {
   status: LobbyGameStatus;
 }
 
-export const useGameStore = defineStore("game", () => {
-  // "Which logged-in user am I?" – set from Setup using auth username
-  const currentPlayerName = ref<string | null>(null);
+type GamesQueryResult = { games: ApiGame[] };
+type CreateGameResult = { createGame: { id: string } };
+type CreateGameVars = {
+  amountOfPlayers: number;
+  targetScore: number;
+  cardsPerPlayer: number;
+};
 
-  // Lobby state
+type GameQueryResult = { game: ApiGame | null };
+type GameQueryVars = { gameId: string };
+
+type StartGameResult = {
+  startGame: { id: string; status: LobbyGameStatus; state?: unknown | null };
+};
+type StartGameVars = { gameId: string };
+
+type DrawCardResult = {
+  drawCard: { id: string; status: LobbyGameStatus; state?: unknown | null };
+};
+type DrawCardVars = { gameId: string };
+
+type PlayCardResult = {
+  playCard: { id: string; status: LobbyGameStatus; state?: unknown | null };
+};
+type PlayCardVars = { gameId: string; cardIndex: number; nextColor?: Color };
+
+function mapApiGameToLobbyGame(g: ApiGame): LobbyGame {
+  return {
+    id: g.id,
+    host: g.createdBy?.username ?? "Unknown",
+    players: (g.players ?? []).map((p) => p.username),
+    maxPlayers: g.amountOfPlayers,
+    targetScore: g.targetScore,
+    cardsPerPlayer: g.cardsPerPlayer,
+    status: g.status,
+  };
+}
+
+export const useGameStore = defineStore("game", () => {
+  const currentPlayerName = ref<string | null>(null);
   const lobbyGames = ref<LobbyGame[]>([]);
   const currentGameId = ref<string | null>(null);
 
-  // Active game
-  const game = ref<Game | null>(null);
-  const currentPlayerIndex = ref(0);
+  const serverGame = ref<ApiGame | null>(null);
 
-  // ----- Getters -----
+  let gameSub: any = null;
+
+  const game = computed(() => {
+    const state = serverGame.value?.state;
+    if (!state) return null;
+    return Game.createFromMemento(state as GameMemento);
+  });
+
   const currentLobbyGame = computed(
     () => lobbyGames.value.find((g) => g.id === currentGameId.value) ?? null
   );
 
-  const isWaitingRoom = computed(() => !!currentLobbyGame.value && !game.value);
+  const isWaitingRoom = computed(() => {
+    const g = currentLobbyGame.value;
+    if (!g) return false;
+    return g.status === "WAITING";
+  });
 
   const currentRound = computed(() => game.value?.currentRound());
-
   const playerCount = computed(() => game.value?.playerCount ?? 0);
-
   const playerInTurn = computed(() => currentRound.value?.playerInTurn());
+
+  const myPlayerIndex = computed(() => {
+    const me = currentPlayerName.value;
+    const m = serverGame.value?.state as GameMemento | undefined;
+    if (!me || !m) return 0;
+    const idx = m.players.indexOf(me);
+    return idx >= 0 ? idx : 0;
+  });
 
   const currentPlayerHand = computed<Card[]>(() => {
     const round = currentRound.value;
     if (!round) return [];
-    return round.playerHand(currentPlayerIndex.value) as Card[];
+    return round.playerHand(myPlayerIndex.value) as Card[];
   });
 
   const isMyTurn = computed(() => {
     if (!game.value) return false;
     if (playerInTurn.value === undefined) return false;
-    return playerInTurn.value === currentPlayerIndex.value;
+    return playerInTurn.value === myPlayerIndex.value;
   });
 
   const canPlayAny = computed(() => {
@@ -59,142 +137,162 @@ export const useGameStore = defineStore("game", () => {
     return round.canPlayAny();
   });
 
-  // winner / scores for game-over + summary
   const winnerIndex = computed(() => game.value?.winner());
+  const hasWinner = computed(() => winnerIndex.value !== undefined);
 
   const players = computed(() => {
-    if (!game.value) return [];
-    const res: string[] = [];
-    for (let i = 0; i < game.value.playerCount; i++) {
-      res.push(game.value.player(i));
-    }
-    return res;
+    const m = serverGame.value?.state as GameMemento | undefined;
+    return m?.players ?? [];
   });
 
   const scores = computed(() => {
-    if (!game.value) return [];
-    const res: number[] = [];
-    for (let i = 0; i < game.value.playerCount; i++) {
-      res.push(game.value.score(i));
-    }
-    return res;
+    const m = serverGame.value?.state as GameMemento | undefined;
+    return m?.scores ?? [];
   });
 
-  const hasWinner = computed(() => winnerIndex.value !== undefined);
-
-  // ----- Actions: lobby/auth-ish -----
   function setCurrentPlayerName(name: string) {
     currentPlayerName.value = name;
   }
 
-  function createLobbyGame(opts: {
+  async function fetchGames() {
+    const res = await apolloClient.query<GamesQueryResult>({
+      query: GAMES_QUERY,
+      fetchPolicy: "no-cache",
+    });
+
+    lobbyGames.value = (res.data?.games ?? []).map(mapApiGameToLobbyGame);
+  }
+
+  async function createLobbyGame(opts: {
     maxPlayers: number;
     targetScore: number;
     cardsPerPlayer: number;
   }) {
-    if (!currentPlayerName.value) {
-      throw new Error("No current player name set");
-    }
+    const res = await apolloClient.mutate<CreateGameResult, CreateGameVars>({
+      mutation: CREATE_GAME_MUTATION,
+      variables: {
+        amountOfPlayers: opts.maxPlayers,
+        targetScore: opts.targetScore,
+        cardsPerPlayer: opts.cardsPerPlayer,
+      },
+      fetchPolicy: "no-cache",
+    });
 
-    const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
+    const created = res.data?.createGame;
+    if (!created?.id) throw new Error("Failed to create game");
 
-    const lobbyGame: LobbyGame = {
-      id,
-      host: currentPlayerName.value,
-      players: [currentPlayerName.value],
-      maxPlayers: opts.maxPlayers,
-      targetScore: opts.targetScore,
-      cardsPerPlayer: opts.cardsPerPlayer,
-      status: "waiting",
-    };
+    await fetchGames();
+    currentGameId.value = created.id;
+    await loadGame(created.id);
+    subscribeToGame(created.id);
+  }
 
-    lobbyGames.value.push(lobbyGame);
+  async function joinLobbyGame(id: string) {
+    await apolloClient.mutate({
+      mutation: JOIN_GAME_MUTATION,
+      variables: { gameId: id },
+      fetchPolicy: "no-cache",
+    });
+
+    await fetchGames();
     currentGameId.value = id;
-    game.value = null;
-    currentPlayerIndex.value = 0;
+    await loadGame(id);
+    subscribeToGame(id);
   }
 
-  function joinLobbyGame(id: string) {
-    if (!currentPlayerName.value) {
-      throw new Error("No current player name set");
-    }
+  async function loadGame(gameId: string) {
+    const res = await apolloClient.query<GameQueryResult, GameQueryVars>({
+      query: GAME_QUERY,
+      variables: { gameId },
+      fetchPolicy: "no-cache",
+    });
 
-    const g = lobbyGames.value.find((x) => x.id === id);
-    if (!g) return;
-
-    if (g.status !== "waiting") return;
-    if (g.players.includes(currentPlayerName.value)) return;
-    if (g.players.length >= g.maxPlayers) return;
-
-    g.players.push(currentPlayerName.value);
-    currentGameId.value = g.id;
-    game.value = null;
-
-    currentPlayerIndex.value = g.players.indexOf(currentPlayerName.value);
+    serverGame.value = res.data?.game ?? null;
   }
 
-  function startGame() {
+  function subscribeToGame(gameId: string) {
+    gameSub?.unsubscribe();
+    gameSub = apolloClient
+      .subscribe<{ gameUpdated: ApiGame }, { gameId: string }>({
+        query: GAME_UPDATED_SUB,
+        variables: { gameId },
+      })
+      .subscribe({
+        next: (result) => {
+          const updated = result.data?.gameUpdated;
+          if (!updated) return;
+          serverGame.value = updated;
+          fetchGames().catch(() => {});
+        },
+        error: (err) => console.error("gameUpdated subscription error", err),
+      });
+  }
+
+  function unsubscribe() {
+    gameSub?.unsubscribe();
+    gameSub = null;
+  }
+
+  async function startGame() {
     const g = currentLobbyGame.value;
-    if (!g) return;
-    if (g.status !== "waiting") return;
-    if (!currentPlayerName.value || currentPlayerName.value !== g.host) return;
+    if (!g) throw new Error("No current game");
+    if (!currentPlayerName.value) throw new Error("No current player");
 
-    const cfg: GameConfig = {
-      players: [...g.players],
-      cardsPerPlayer: g.cardsPerPlayer,
-      targetScore: g.targetScore,
-    };
+    const res = await apolloClient.mutate<StartGameResult, StartGameVars>({
+      mutation: START_GAME_MUTATION,
+      variables: { gameId: g.id },
+      fetchPolicy: "no-cache",
+    });
 
-    game.value = new Game(cfg);
-    g.status = "in-progress";
-
-    currentPlayerIndex.value = g.players.indexOf(currentPlayerName.value);
+    const updated = res.data?.startGame;
+    if (updated) {
+      await loadGame(g.id);
+    }
   }
 
-  // ----- Actions: round / gameplay -----
   function canPlayCard(index: number): boolean {
     const round = currentRound.value;
     if (!round) return false;
     return round.canPlay(index);
   }
 
-  function playCardAt(index: number, nextColor?: Color) {
-    const round = currentRound.value;
-    if (!round) throw new Error("No active round");
+  async function playCardAt(index: number, nextColor?: Color) {
+    const id = currentGameId.value;
+    if (!id) throw new Error("No game selected");
+    if (!isMyTurn.value) throw new Error("Not your turn");
 
-    if (!isMyTurn.value) {
-      throw new Error("Not your turn");
-    }
-
-    // let Round.play itself throw if illegal
-    round.play(index, nextColor);
+    await apolloClient.mutate<PlayCardResult, PlayCardVars>({
+      mutation: PLAY_CARD,
+      variables: { gameId: id, cardIndex: index, nextColor },
+      fetchPolicy: "no-cache",
+    });
   }
 
-  function drawCard() {
-    const round = currentRound.value;
-    if (!round) throw new Error("No active round");
+  async function drawCard() {
+    const id = currentGameId.value;
+    if (!id) throw new Error("No game selected");
+    if (!isMyTurn.value) throw new Error("Not your turn");
 
-    if (!isMyTurn.value) {
-      throw new Error("Not your turn");
-    }
-
-    round.draw();
+    await apolloClient.mutate<DrawCardResult, DrawCardVars>({
+      mutation: DRAW_CARD,
+      variables: { gameId: id },
+      fetchPolicy: "no-cache",
+    });
   }
 
   return {
-    // state
     currentPlayerName,
     lobbyGames,
     currentGameId,
-    game,
-    currentPlayerIndex,
+    serverGame,
 
-    // getters
     currentLobbyGame,
     isWaitingRoom,
+    game,
     currentRound,
     playerCount,
     playerInTurn,
+    myPlayerIndex,
     currentPlayerHand,
     isMyTurn,
     canPlayAny,
@@ -203,13 +301,14 @@ export const useGameStore = defineStore("game", () => {
     scores,
     hasWinner,
 
-    // lobby-ish actions
     setCurrentPlayerName,
+    fetchGames,
     createLobbyGame,
     joinLobbyGame,
+    loadGame,
+    subscribeToGame,
+    unsubscribe,
     startGame,
-
-    // gameplay actions
     canPlayCard,
     playCardAt,
     drawCard,

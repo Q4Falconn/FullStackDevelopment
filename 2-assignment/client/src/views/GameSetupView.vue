@@ -34,7 +34,7 @@
           <strong>{{ g.host }}'s game</strong>
           — {{ g.players.length }}/{{ g.maxPlayers }} players — status:
           {{ g.status }}
-          <button :disabled="g.status !== 'waiting'" @click="onJoin(g.id)">
+          <button :disabled="g.status !== 'WAITING'" @click="onJoin(g.id)">
             Join
           </button>
         </li>
@@ -48,6 +48,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useGameStore } from "@/stores/gameStore";
 import { useAuthStore } from "@/stores/authStore";
+import { onMounted } from "vue";
 
 const router = useRouter();
 const gameStore = useGameStore();
@@ -69,6 +70,10 @@ function ensureName(): boolean {
   gameStore.setCurrentPlayerName(username);
   return true;
 }
+
+onMounted(() => {
+  gameStore.fetchGames();
+});
 
 function onCreateGame() {
   if (!ensureName()) return;
