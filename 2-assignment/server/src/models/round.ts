@@ -1,5 +1,5 @@
-import { colors, Deck, type Card, type NumberedCard } from "./deck";
-import { standardShuffler, type Shuffler } from "../utils/random_utils";
+import { colors, Deck, type Card, type NumberedCard } from "./deck.js";
+import { standardShuffler, type Shuffler } from "../utils/random_utils.js";
 
 const MIN_AMOUNT_OF_PLAYERS = 2;
 const MAX_AMOUNT_OF_PLAYERS = 10;

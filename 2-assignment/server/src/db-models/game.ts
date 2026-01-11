@@ -10,6 +10,8 @@ export interface IGame {
   createdBy: Types.ObjectId;
   createdAt: Date;
   memento: string;
+  status: "WAITING" | "IN_PROGRESS" | "FINISHED";
+  gameState: any;
 }
 
 const gameSchema = new Schema<IGame>({
@@ -21,6 +23,13 @@ const gameSchema = new Schema<IGame>({
   createdBy: { type: Schema.Types.ObjectId, ref: "User" },
   createdAt: { type: Schema.Types.Date, required: true },
   memento: { type: Schema.Types.String },
+  status: {
+    type: String,
+    enum: ["WAITING", "IN_PROGRESS", "FINISHED"],
+    required: true,
+    default: "WAITING",
+  },
+  gameState: { type: Schema.Types.Mixed, required: false },
 });
 
 export type GameDocument = HydratedDocument<IGame>;

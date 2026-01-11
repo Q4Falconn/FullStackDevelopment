@@ -3,9 +3,9 @@ import {
   type Shuffler,
   standardRandomizer,
   standardShuffler,
-} from "../utils/random_utils";
-import { type Card } from "./deck";
-import { fromMemento, Round } from "./round";
+} from "../utils/random_utils.js";
+import { type Card } from "./deck.js";
+import { fromMemento, Round } from "./round.js";
 
 export type GameConfig = {
   players?: string[];
