@@ -45,7 +45,10 @@ export type GameRuntime = Readonly<{
 }>;
 
 /** Create a new game state (pure). */
-export function createGame(gameConfig: GameConfig): { state: GameState; runtime: GameRuntime } {
+export function createGame(gameConfig: GameConfig): {
+  state: GameState;
+  runtime: GameRuntime;
+} {
   const cfg: Required<GameConfig> = {
     players: gameConfig.players ?? ["A", "B"],
     targetScore: gameConfig.targetScore ?? 500,
@@ -54,7 +57,8 @@ export function createGame(gameConfig: GameConfig): { state: GameState; runtime:
     shuffler: gameConfig.shuffler ?? standardShuffler,
   };
 
-  if (cfg.players.length < 2) throw new Error("A game must have at least two players.");
+  if (cfg.players.length < 2)
+    throw new Error("A game must have at least two players.");
   if (cfg.targetScore <= 0) throw new Error("Target score must be positive.");
 
   const scores = new Array(cfg.players.length).fill(0);
@@ -93,7 +97,9 @@ export function onRoundFinished(
   args: { winner: number }
 ): GameState {
   const w = args.winner;
-  const roundPoints = state.currentRound ? roundScore(state.currentRound) ?? 0 : 0;
+  const roundPoints = state.currentRound
+    ? roundScore(state.currentRound) ?? 0
+    : 0;
 
   const newScores = state.scores.map((s, i) => (i === w ? s + roundPoints : s));
   const newStateBase: GameState = { ...state, scores: newScores };
@@ -116,17 +122,25 @@ export function onRoundFinished(
 export function toMemento(state: GameState): GameMemento {
   return {
     players: [...state.players],
-    currentRound: state.currentRound ? roundToMemento(state.currentRound) : undefined,
+    currentRound: state.currentRound
+      ? roundToMemento(state.currentRound)
+      : undefined,
     targetScore: state.targetScore,
     scores: [...state.scores],
     cardsPerPlayer: state.cardsPerPlayer,
   };
 }
 
-export function fromMemento(memento: GameMemento, runtime?: Partial<GameRuntime>): { state: GameState; runtime: GameRuntime } {
-  if (memento.players.length < 2) throw new Error("A game must have at least two players.");
-  if (memento.targetScore <= 0) throw new Error("Target score must be positive.");
-  if (memento.scores.some((s) => s < 0)) throw new Error("Scores must be non-negative.");
+export function fromMemento(
+  memento: GameMemento,
+  runtime?: Partial<GameRuntime>
+): { state: GameState; runtime: GameRuntime } {
+  if (memento.players.length < 2)
+    throw new Error("A game must have at least two players.");
+  if (memento.targetScore <= 0)
+    throw new Error("Target score must be positive.");
+  if (memento.scores.some((s) => s < 0))
+    throw new Error("Scores must be non-negative.");
   if (memento.scores.length !== memento.players.length) {
     throw new Error("Scores length must match players length.");
   }
@@ -140,15 +154,21 @@ export function fromMemento(memento: GameMemento, runtime?: Partial<GameRuntime>
   };
 
   const gameWinner = (() => {
-    for (let i = 0; i < memento.scores.length; i++) if (memento.scores[i] >= memento.targetScore) return i;
+    for (let i = 0; i < memento.scores.length; i++)
+      if (memento.scores[i] >= memento.targetScore) return i;
     return undefined;
   })();
 
   if (gameWinner === undefined && memento.currentRound === undefined) {
-    throw new Error("An unfinished game must have a current round in the memento.");
+    throw new Error(
+      "An unfinished game must have a current round in the memento."
+    );
   }
 
-  const round = gameWinner === undefined ? roundFromMemento(memento.currentRound, rt.shuffler) : undefined;
+  const round =
+    gameWinner === undefined
+      ? roundFromMemento(memento.currentRound, rt.shuffler)
+      : undefined;
 
   return {
     state: {
@@ -173,8 +193,17 @@ export class Game {
   constructor(gameConfig?: GameConfig) {
     if (!gameConfig) {
       // empty game
-      this._state = { players: [], scores: [], targetScore: 0, cardsPerPlayer: 0, currentRound: undefined };
-      this._runtime = { randomizer: standardRandomizer, shuffler: standardShuffler };
+      this._state = {
+        players: [],
+        scores: [],
+        targetScore: 0,
+        cardsPerPlayer: 0,
+        currentRound: undefined,
+      };
+      this._runtime = {
+        randomizer: standardRandomizer,
+        shuffler: standardShuffler,
+      };
       return;
     }
     const created = createGame(gameConfig);
@@ -191,7 +220,8 @@ export class Game {
   }
 
   player(index: number): string {
-    if (index < 0 || index >= this._state.players.length) throw new Error("Player index out of bounds.");
+    if (index < 0 || index >= this._state.players.length)
+      throw new Error("Player index out of bounds.");
     return this._state.players[index]!;
   }
 
@@ -221,8 +251,11 @@ export class Game {
 
   /** Manually trigger finishing a round (for test harnesses). */
   finishRound(winnerIndex: number): void {
-    this._state = onRoundFinished(this._state, this._runtime, { winner: winnerIndex });
+    this._state = onRoundFinished(this._state, this._runtime, {
+      winner: winnerIndex,
+    });
   }
 }
 
-export const createFromMemento = (memento: GameMemento): Game => Game.createFromMemento(memento);
+export const createFromMemento = (memento: GameMemento): Game =>
+  Game.createFromMemento(memento);
