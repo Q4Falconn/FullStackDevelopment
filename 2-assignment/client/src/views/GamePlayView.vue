@@ -27,7 +27,7 @@
       </p>
 
       <button v-if="isHost" @click="() => gameStore.startGame()">
-        Start game
+        Start Game
       </button>
       <p v-else>Waiting for the host to start…</p>
     </div>

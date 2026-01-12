@@ -262,7 +262,7 @@ export class Round {
   }
 
   static createRoundFromMemento(memento: any, shuffler: Shuffler<Card>): Round {
-    const round = Object.create(Round.prototype) as Round;
+    const round: Round = Object.create(Round.prototype);
 
     round.onEndCallbacks = [];
 
