@@ -141,7 +141,9 @@ export function hasNumber(card: Card, number: number): boolean {
 
 export function validateCards(cards: any): cards is Card[] {
   if (!Array.isArray(cards)) return false;
-  const hasInvalidType = !cards.every((card: any) => actionTypes.includes(card?.type));
+  const hasInvalidType = !cards.every((card: any) =>
+    actionTypes.includes(card?.type)
+  );
   if (hasInvalidType) return false;
 
   for (const card of cards) {
@@ -153,14 +155,3 @@ export function validateCards(cards: any): cards is Card[] {
   }
   return true;
 }
-
-/** Convenience helper for safe immutable updates during development/tests. */
-export const deepFreeze = <T>(x: T): Readonly<T> => {
-  if (isObjectLike(x)) {
-    // @ts-ignore
-    Object.freeze(x);
-    // @ts-ignore
-    for (const v of Object.values(x)) deepFreeze(v);
-  }
-  return x as Readonly<T>;
-};

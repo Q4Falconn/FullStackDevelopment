@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Card } from "@/model/deck";
 import { computed } from "vue";
+
 const props = defineProps({
   card: {
     type: Object as () => Card,

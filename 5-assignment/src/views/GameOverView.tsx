@@ -1,32 +1,33 @@
-import React, { useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import { useAppSelector } from '@/store/hooks'
-import { fromMemento as gameFromMemento, type GameMemento } from '@/model/game'
+import React, { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { useAppSelector } from "@/store/hooks";
+import { fromMemento as gameFromMemento, type GameMemento } from "@/model/game";
 
 export default function GameOverView() {
-  const serverGame = useAppSelector((s) => s.game.serverGame)
+  const serverGame = useAppSelector((s) => s.game.serverGame);
   const derived = useMemo(() => {
-    const m = serverGame?.state as unknown as GameMemento | undefined
-    if (!m) return null
+    const m = serverGame?.state as unknown as GameMemento | undefined;
+    if (!m) return null;
     try {
-      return gameFromMemento(m).state
+      return gameFromMemento(m).state;
     } catch {
-      return null
+      return null;
     }
-  }, [serverGame?.state])
+  }, [serverGame?.state]);
 
-  if (!serverGame || !derived) return <p>No game loaded.</p>
+  if (!serverGame || !derived) return <p>No game loaded.</p>;
 
-  const players = derived.players
-  const scores = derived.scores
-  let winnerIndex: number | undefined
-  for (let i = 0; i < scores.length; i++) if (scores[i]! >= derived.targetScore) winnerIndex = i
+  const players = derived.players;
+  const scores = derived.scores;
+  let winnerIndex: number | undefined;
+  for (let i = 0; i < scores.length; i++)
+    if (scores[i]! >= derived.targetScore) winnerIndex = i;
 
   return (
     <div>
       <h2>Game Over</h2>
       <p>
-        Winner: <b>{winnerIndex !== undefined ? players[winnerIndex] : '—'}</b>
+        Winner: <b>{winnerIndex !== undefined ? players[winnerIndex] : "—"}</b>
       </p>
       <h3>Final scores</h3>
       <ul>
@@ -38,5 +39,5 @@ export default function GameOverView() {
       </ul>
       <Link to="/summary">Go to summary</Link>
     </div>
-  )
+  );
 }

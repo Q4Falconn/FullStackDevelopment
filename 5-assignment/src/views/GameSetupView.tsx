@@ -1,49 +1,66 @@
-import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { fetchGames, createLobbyGame, joinLobbyGame } from '@/features/game/lobbySlice'
-import { loadGame, subscribeToGame, setCurrentPlayerName } from '@/features/game/gameSlice'
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  fetchGames,
+  createLobbyGame,
+  joinLobbyGame,
+} from "@/features/game/lobbySlice";
+import {
+  loadGame,
+  subscribeToGame,
+  setCurrentPlayerName,
+} from "@/features/game/gameSlice";
 
 export default function GameSetupView() {
-  const dispatch = useAppDispatch()
-  const nav = useNavigate()
-  const lobby = useAppSelector((s) => s.lobby)
-  const user = useAppSelector((s) => s.auth.user)
+  const dispatch = useAppDispatch();
+  const nav = useNavigate();
+  const lobby = useAppSelector((s) => s.lobby);
+  const user = useAppSelector((s) => s.auth.user);
 
-  const [amountOfPlayers, setAmountOfPlayers] = useState(4)
-  const [targetScore, setTargetScore] = useState(500)
-  const [cardsPerPlayer, setCardsPerPlayer] = useState(7)
-
-  useEffect(() => {
-    dispatch(fetchGames())
-  }, [dispatch])
+  const [amountOfPlayers, setAmountOfPlayers] = useState(4);
+  const [targetScore, setTargetScore] = useState(500);
+  const [cardsPerPlayer, setCardsPerPlayer] = useState(7);
 
   useEffect(() => {
-    if (user?.username) dispatch(setCurrentPlayerName(user.username))
-  }, [dispatch, user?.username])
+    dispatch(fetchGames());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (user?.username) dispatch(setCurrentPlayerName(user.username));
+  }, [dispatch, user?.username]);
 
   async function onCreate() {
     const id = await dispatch(
       createLobbyGame({ amountOfPlayers, targetScore, cardsPerPlayer })
-    ).unwrap()
-    await dispatch(loadGame({ gameId: id }))
-    await dispatch(subscribeToGame({ gameId: id }))
-    nav('/play')
+    ).unwrap();
+    await dispatch(loadGame({ gameId: id }));
+    await dispatch(subscribeToGame({ gameId: id }));
+    nav("/play");
   }
 
   async function onJoin(id: string) {
-    await dispatch(joinLobbyGame({ gameId: id })).unwrap()
-    await dispatch(loadGame({ gameId: id }))
-    await dispatch(subscribeToGame({ gameId: id }))
-    nav('/play')
+    await dispatch(joinLobbyGame({ gameId: id })).unwrap();
+    await dispatch(loadGame({ gameId: id }));
+    await dispatch(subscribeToGame({ gameId: id }));
+    nav("/play");
   }
 
   return (
     <div>
       <h2>Game setup</h2>
 
-      <div style={{ display: 'grid', gap: 8, maxWidth: 520, border: '1px solid #e5e5e5', padding: 12, borderRadius: 10 }}>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: "grid",
+          gap: 8,
+          maxWidth: 520,
+          border: "1px solid #e5e5e5",
+          padding: 12,
+          borderRadius: 10,
+        }}
+      >
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <label>
             Players
             <input
@@ -56,7 +73,12 @@ export default function GameSetupView() {
           </label>
           <label>
             Target score
-            <input type="number" min={1} value={targetScore} onChange={(e) => setTargetScore(Number(e.target.value))} />
+            <input
+              type="number"
+              min={1}
+              value={targetScore}
+              onChange={(e) => setTargetScore(Number(e.target.value))}
+            />
           </label>
           <label>
             Cards/player
@@ -73,15 +95,32 @@ export default function GameSetupView() {
       </div>
 
       <h3 style={{ marginTop: 24 }}>Open games</h3>
-      <button onClick={() => dispatch(fetchGames())} disabled={lobby.status === 'loading'}>
+      <button
+        onClick={() => dispatch(fetchGames())}
+        disabled={lobby.status === "loading"}
+      >
         Refresh
       </button>
-      {lobby.error && <p style={{ color: 'crimson' }}>{lobby.error}</p>}
+      {lobby.error && <p style={{ color: "crimson" }}>{lobby.error}</p>}
 
-      <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
         {lobby.games.map((g) => (
-          <div key={g.id} style={{ border: '1px solid #e5e5e5', padding: 12, borderRadius: 10 }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div
+            key={g.id}
+            style={{
+              border: "1px solid #e5e5e5",
+              padding: 12,
+              borderRadius: 10,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
               <strong>{g.id}</strong>
               <span>Host: {g.host}</span>
               <span>Status: {g.status}</span>
@@ -91,15 +130,24 @@ export default function GameSetupView() {
               <span>Cards/player: {g.cardsPerPlayer}</span>
               <span>Target score: {g.targetScore}</span>
               <div style={{ flex: 1 }} />
-              <button onClick={() => onJoin(g.id)} disabled={g.status !== 'WAITING'}>
+              <button
+                onClick={() => onJoin(g.id)}
+                disabled={g.status !== "WAITING"}
+              >
                 Join
               </button>
             </div>
-            {g.players.length > 0 && <div style={{ opacity: 0.8, marginTop: 8 }}>Players: {g.players.join(', ')}</div>}
+            {g.players.length > 0 && (
+              <div style={{ opacity: 0.8, marginTop: 8 }}>
+                Players: {g.players.join(", ")}
+              </div>
+            )}
           </div>
         ))}
-        {lobby.games.length === 0 && <p style={{ opacity: 0.7 }}>No games yet.</p>}
+        {lobby.games.length === 0 && (
+          <p style={{ opacity: 0.7 }}>No games yet.</p>
+        )}
       </div>
     </div>
-  )
+  );
 }
